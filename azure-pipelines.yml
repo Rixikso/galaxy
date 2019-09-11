@@ -16,6 +16,7 @@ steps:
   inputs:
     packageType: 'sdk'
     version: '2.1.x'
+
 - task: Npm@1
   displayName: 'Run npm install'
   inputs:
@@ -26,7 +27,7 @@ steps:
   displayName: 'Restore project dependencies'
   inputs:
     command: 'restore'
-    projects: './Galaxy/Galaxy.Web/*.csproj'
+    projects: '**/*.csproj'
 
 - task: DotNetCoreCLI@2
   displayName: 'Build the project - Release'
