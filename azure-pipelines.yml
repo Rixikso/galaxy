@@ -1,27 +1,25 @@
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
-trigger:
-- master
-
 pool:
   vmImage: 'ubuntu-latest'
   depends:
     - npm
 
+variables:
+    buildConfiguration: 'Release'
+    clientAppDir: './Galaxy/Galaxy.Web/ClientApp/'
+    dotnetSdkVersion: '2.1.x'
+
 steps:
 - task: UseDotNet@2
-  displayName: 'Use dotnet 2.1'
+  displayName: 'Use dotnet 2.1.x'
   inputs:
     packageType: 'sdk'
-    version: '2.1.x'
+    version: '$(dotnetSdkVersion)'
 
 - task: Npm@1
   displayName: 'Run npm install'
   inputs:
     command: 'install'
-    workingDir: './Galaxy/Galaxy.Web/ClientApp/'
+    workingDir: '$(clientAppDir)'
 
 - task: DotNetCoreCLI@2
   displayName: 'Restore project dependencies'
@@ -30,19 +28,19 @@ steps:
     projects: '**/*.csproj'
 
 - task: DotNetCoreCLI@2
-  displayName: 'Build the project - Release'
+  displayName: 'Build the project - $(buildConfiguration)'
   inputs:
     command: 'build'
-    arguments: '--no-restore --configuration Release'
+    arguments: '--no-restore --configuration $(buildConfiguration)'
     projects: '**/*.csproj'
 
 - task: DotNetCoreCLI@2
-  displayName: 'Publish the project - Release'
+  displayName: 'Publish the project - $(buildConfiguration)'
   inputs:
     command: 'publish'
     projects: '**/*.csproj'
     publishWebProjects: false
-    arguments: '--no-build --configuration Release --output $(Build.ArtifactStagingDirectory)/Release'
+    arguments: '--no-build --configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/$(buildConfiguration)'
     zipAfterPublish: true
 
 - task: PublishBuildArtifacts@1
