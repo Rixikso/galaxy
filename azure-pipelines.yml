@@ -45,6 +45,19 @@ steps:
   parameters:
     buildConfiguration: 'Release'
 
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'token-kraken'
+    organization: 'mmm'
+    scannerMode: 'MSBuild'
+    projectKey: 'mmm-galaxy'
+    projectName: 'Galaxy'
+- task: SonarCloudAnalyze@1
+
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
+
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: drop'
   inputs:
