@@ -1,48 +1,86 @@
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- master
+  branches:
+    include:
+    - 'master'
+    - 'develop'
+    - 'feature/*'     # build all branches
+  paths:
+    exclude:
+    - docs/*  # exclude the docs folder
 
 pool:
   vmImage: 'ubuntu-latest'
   depends:
     - npm
 
+variables:
+    buildConfiguration: 'Release'
+    clientAppDir: './Galaxy/Galaxy.Web/ClientApp/'
+    dotnetSdkVersion: '2.1.x'
+
 steps:
 - task: UseDotNet@2
-  displayName: 'Use dotnet 2.1'
+  displayName: 'Use dotnet 2.1.x'
   inputs:
     packageType: 'sdk'
-    version: '2.1.x'
+    version: '$(dotnetSdkVersion)'
+
 - task: Npm@1
   displayName: 'Run npm install'
   inputs:
     command: 'install'
-    workingDir: './Galaxy/Galaxy.Web/ClientApp/'
+    workingDir: '$(clientAppDir)'
 
 - task: DotNetCoreCLI@2
   displayName: 'Restore project dependencies'
   inputs:
     command: 'restore'
-    projects: './Galaxy/Galaxy.Web/*.csproj'
+    projects: '**/*.csproj'
 
-- task: DotNetCoreCLI@2
-  displayName: 'Build the project - Release'
+- task: SonarCloudPrepare@1
+  displayName: 'Prepare SonarCloud analysis'
   inputs:
-    command: 'build'
-    arguments: '--no-restore --configuration Release'
-    projects: './Galaxy/Galaxy.Web/*.csproj'
+    SonarCloud: 'token-kraken'
+    organization: '$(organization)'
+    projectKey: '$(projectKey)'
+    projectName: '$(projectName)'
+    projectVersion: '$(Build.BuildNumber)'
+    extraProperties: |
+     sonar.cs.opencover.reportsPaths=$(Build.SourcesDirectory)/TestResults/Coverage/coverage.opencover.xml
+     sonar.exclusions=**/wwwroot/lib/**/*
+  condition: |
+    and
+    (
+      succeeded(),
+      eq(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['System.PullRequest.TargetBranch'], 'master')
+    )
 
-- task: DotNetCoreCLI@2
-  displayName: 'Publish the project - Release'
+- template: templates/build.yml
+  parameters:
+    buildConfiguration: 'Debug'
+
+- task: SonarCloudAnalyze@1
+  displayName: 'Run SonarCloud code analysis'
+  condition: |
+    and
+    (
+      succeeded(),
+      eq(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['System.PullRequest.TargetBranch'], 'master')
+    )
+
+- task: SonarCloudPublish@1
+  displayName: 'Publish SonarCloud quality gate results'
   inputs:
-    command: 'publish'
-    projects: './Galaxy/Galaxy.Web/*.csproj'
-    publishWebProjects: false
-    arguments: '--no-build --configuration Release --output $(Build.ArtifactStagingDirectory)/Release'
-    zipAfterPublish: true
+    pollingTimeoutSec: '300'
+  condition: |
+    and
+    (
+      succeeded(),
+      eq(variables['Build.Reason'], 'PullRequest'),
+      eq(variables['System.PullRequest.TargetBranch'], 'master')
+    )
 
 - task: WhiteSource Bolt@19
   displayName: 'Run WhiteSource Bolt'
